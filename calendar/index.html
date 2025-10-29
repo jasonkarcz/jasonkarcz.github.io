@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-g">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendar Printer App</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom font imports for expanded list */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Playfair+Display:ital,wght@0,400..900&family=IBM+Plex+Mono:ital,wght@0,100..700&family=Roboto:wght@100..900&family=Merriweather:wght@300;400;700&family=Courier+Prime&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+            padding-top: 64px; 
+        }
+        
+        /* Custom font family mapping classes */
+        .font-inter { font-family: 'Inter', sans-serif; }
+        .font-roboto { font-family: 'Roboto', sans-serif; }
+        .font-serif { font-family: 'Playfair Display', serif; }
+        .font-merriweather { font-family: 'Merriweather', serif; }
+        .font-mono { font-family: 'IBM Plex Mono', monospace; }
+        .font-courier { font-family: 'Courier Prime', monospace; }
+
+
+        /* Enforce fixed column widths and collapse borders */
+        #calendar-table {
+            table-layout: fixed; 
+        }
+        
+        /* The note input now relies solely on line-height for vertical spacing */
+        .note-input {
+            min-height: 1.5rem;
+            outline: none;
+            border-bottom: 1px dashed #ccc;
+            word-wrap: break-word; 
+        }
+        .note-input:focus {
+            border-bottom: 1px solid #3b82f6;
+        }
+        
+        /* Date number positioning container: We use JS/Tailwind classes for left/right/center positioning */
+        .day-num-display {
+            position: absolute;
+            top: 4px;
+            z-index: 10;
+            white-space: nowrap; /* Prevents the number itself from wrapping */
+        }
+
+        /* Style for active toggle buttons in the sidebar */
+        .style-input-toggle.active {
+            background-color: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+        
+        /* Style for the color input widget */
+        .color-input-widget {
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            cursor: pointer;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .color-input-widget::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+        .color-input-widget::-webkit-color-swatch {
+            border: none;
+        }
+        .color-input-container {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* --- PRINT STYLES --- */
+        @media print {
+            html, body {
+                height: 100%; 
+                margin: 0; 
+            }
+            #app-header {
+                display: none !important;
+            }
+            body {
+                padding-top: 0 !important;
+                background-color: white !important;
+            }
+            main {
+                max-width: none !important;
+                margin: 0 !important;
+                padding: 10mm !important; 
+                height: 100% !important; 
+            }
+            main > div {
+                padding: 0 !important;
+                box-shadow: none !important;
+                border: none !important;
+                border-radius: 0 !important;
+                height: 100% !important; 
+                display: flex; 
+                flex-direction: column;
+            }
+            /* The #print-title is no longer used, the table header row will print instead */
+            #print-title {
+                display: none !important; /* Hide the old print title */
+            }
+            #calendar-header-cell {
+                /* Ensure the new table header cell prints correctly */
+                display: table-cell !important; 
+            }
+            #calendar-table {
+                border-collapse: collapse !important;
+                border-width: 0 !important; 
+                flex-grow: 1; 
+                height: auto;
+            }
+            #calendar-body td { 
+                height: 16.66% !important; 
+                min-height: 0 !important; 
+                border: 1px solid #777 !important; 
+                /* MODIFIED: Removed !important from background-color */
+                background-color: white; 
+                padding: 4px !important;
+                position: relative;
+            }
+            #calendar-table th {
+                border: 1px solid #777 !important;
+                /* MODIFIED: Removed !important from background-color */
+                background-color: #f0f0f0;
+            }
+            /* Style for the day headers row */
+            #calendar-table thead #day-headers-row th {
+                 border-bottom: 2px solid #000 !important;
+            }
+            /* Style for the new month/year header row */
+            #calendar-table thead #month-header-row th {
+                 border-bottom: 1px solid #777 !important;
+            }
+            .add-note-btn, .delete-note-btn { 
+                display: none !important;
+            }
+            .day-content-container {
+                max-height: calc(100% - 25px) !important;
+                overflow: visible !important;
+                margin-top: 28px !important; /* NEW: Added margin to prevent overlap with date number */
+            }
+            .note-entry {
+                margin-bottom: 0 !important; /* Ensure no margin in print */
+            }
+            .note-entry > div {
+                 display: block !important;
+                 border-bottom: none !important; 
+                 white-space: normal !important; 
+                 padding: 0 !important;
+            }
+            /* Reset absolute positioning for print to allow JS/Tailwind positioning to take full effect */
+            .day-num-display {
+                position: absolute !important;
+                top: 4px !important; 
+                z-index: 10 !important;
+                margin-bottom: 0 !important;
+            }
+            
+            /* Print-specific adjustments for date number positioning */
+            .right-4 { right: 4px; left: auto; }
+            .left-4 { left: 4px; right: auto; }
+            /* Center uses flex/transform, which should be fine */
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- Application Header (Fixed AppBar) -->
+    <header id="app-header" class="fixed top-0 left-0 w-full bg-blue-600 text-white shadow-xl z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <!-- App Title -->
+            <div class="text-xl font-semibold tracking-wide hidden sm:block">
+                Calendar Printer App
+            </div>
+            
+            <!-- Month Selector/Navigation -->
+            <div class="flex items-center space-x-2 sm:space-x-4">
+                <button id="prev-month" class="p-2 rounded-full hover:bg-blue-500 transition duration-150 focus:outline-none focus:ring-2 focus:ring-blue-300" title="Previous Month">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-left"><path d="m15 18-6-6 6-6"/></svg>
+                </button>
+                
+                <!-- NEW: Dropdown Selectors -->
+                <select id="month-select" class="bg-blue-600 text-white p-1 rounded hover:bg-blue-500 transition focus:outline-none focus:ring-2 focus:ring-blue-300 text-lg font-medium" title="Select Month">
+                    <!-- Options populated by JS -->
+                </select>
+                <select id="year-select" class="bg-blue-600 text-white p-1 rounded hover:bg-blue-500 transition focus:outline-none focus:ring-2 focus:ring-blue-300 text-lg font-medium" title="Select Year">
+                    <!-- Options populated by JS -->
+                </select>
+                <!-- END NEW -->
+
+                <button id="next-month" class="p-2 rounded-full hover:bg-blue-500 transition duration-150 focus:outline-none focus:ring-2 focus:ring-blue-300" title="Next Month">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-right"><path d="m9 18 6-6-6-6"/></svg>
+                </button>
+            </div>
+
+            <!-- Action Buttons (Today, Print, Menu) -->
+            <div class="flex items-center space-x-2">
+                <button id="today-button" class="p-2 rounded-full hover:bg-blue-500 transition duration-150 text-white" title="Go to Today">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-calendar-days"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>
+                </button>
+
+                <button id="print-button" class="p-2 rounded-full hover:bg-blue-500 transition duration-150 text-white" title="Print Calendar">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-printer"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
+                </button>
+
+                <button id="menu-button" class="p-2 rounded-full hover:bg-blue-500 transition duration-150 text-white" title="Settings Menu">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Settings Sidebar (Off-canvas menu) -->
+    <div id="settings-sidebar" class="fixed top-0 right-0 w-80 max-w-full h-full bg-white shadow-2xl z-[100] transform translate-x-full transition-transform duration-300 ease-in-out print:hidden overflow-y-auto">
+        <div class="sticky top-0 p-4 flex justify-between items-center border-b border-gray-200 bg-gray-50 z-10">
+            <h2 class="text-lg font-semibold text-gray-800">Calendar Settings</h2>
+            <button id="close-sidebar-button" class="p-2 rounded-full hover:bg-gray-200 transition duration-150" title="Close Menu">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+        </div>
+
+        <!-- Sidebar Content -->
+        <div class="p-4 space-y-2">
+            <!-- Accordion Item 1: Font / Style -->
+            <div class="border rounded-lg overflow-hidden">
+                <button class="accordion-header w-full flex justify-between items-center p-3 bg-gray-100 hover:bg-gray-200 transition font-medium text-left">
+                    Font / Style
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="accordion-icon transition-transform duration-300"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+                <div class="accordion-content p-3 text-sm text-gray-600 space-y-4 hidden">
+
+                    <!-- Main Header (Month Year) -->
+                    <div id="style-group-mainHeader">
+                        <h4 class="font-bold text-gray-800 mb-2 border-b pb-1">Main Header (Month/Year)</h4>
+                        <div data-style-target="mainHeader" class="style-controls flex flex-wrap gap-2 items-center">
+                            <!-- Font Family -->
+                            <select data-style-property="font" class="style-input-select text-xs p-1 border rounded-md focus:ring-blue-500 focus:border-blue-500">
+                                <!-- Options populated by JS -->
+                            </select>
+                            <!-- Font Size (pt) -->
+                            <select data-style-property="size" class="style-input-select text-xs p-1 border rounded-md focus:ring-blue-500 focus:border-blue-500">
+                                <!-- Options populated by JS -->
+                            </select>
+                            <!-- Font Color -->
+                            <div class="color-input-container">
+                                <label for="mainHeader-color" class="text-xs mr-1">Text</label>
+                                <input id="mainHeader-color" type="color" data-style-property="color" value="#000000" class="color-input-widget">
+                            </div>
+                            <!-- Background Color -->
+                            <div class="color-input-container">
+                                <label for="mainHeader-bgColor" class="text-xs mr-1">Background</label>
+                                <input id="mainHeader-bgColor" type="color" data-style-property="bgColor" value="#F3F4F6" class="color-input-widget" title="Background Color">
+                            </div>
+                            <!-- Formatting Toggles -->
+                            <button data-style-property="bold" data-style-type="toggle" class="style-input-toggle p-1.5 text-gray-500 hover:text-blue-600 rounded transition border" title="Bold">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-bold"><path d="M14 6H5v12h9a4 4 0 0 0 4-4V10a4 4 0 0 0-4-4z"/><path d="M14 12H5"/><path d="M14 12h2"/></svg>
+                            </button>
+                            <button data-style-property="italic" data-style-type="toggle" class="style-input-toggle p-1.5 text-gray-500 hover:text-blue-600 rounded transition border" title="Italic">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-italic"><line x1="19" x2="10" y1="4" y2="4"/><line x1="14" x2="5" y1="20" y2="20"/><line x1="15" x2="9" y1="4" y2="20"/></svg>
+                            </button>
+                            <button data-style-property="underline" data-style-type="toggle" class="style-input-toggle p-1.5 text-gray-500 hover:text-blue-600 rounded transition border" title="Underline">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-underline"><path d="M6 3v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3"/><line x1="4" x2="20" y1="21" y2="21"/></svg>
+                            </button>
+
+                            <!-- NEW: Justification for Main Header -->
+                            <div class="mt-4 w-full">
+                                <h5 class="block text-xs font-medium mb-1 text-gray-800">Header Position</h5>
+                                <div data-style-property-group="justification" class="flex gap-2">
+                                    <button data-style-property="justification" data-style-value="left" class="style-input-toggle p-1.5 text-gray-500 hover:text-blue-600 rounded transition border" title="Align Left">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-align-left"><line x1="21" x2="3" y1="6" y2="6"/><line x1="15" x2="3" y1="12" y2="12"/><line x1="17" x2="3" y1="18" y2="18"/></svg>
+                                    </button>
+                                    <button data-style-property="justification" data-style-value="center" class="style-input-toggle p-1.5 text-gray-500 hover:text-blue-600 rounded transition border" title="Align Center">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-align-center"><line x1="21" x2="3" y1="6" y2="6"/><line x1="17" x2="7" y1="12" y2="12"/><line x1="19" x2="5" y1="18" y2="18"/></svg>
+                                    </button>
+                                    <button data-style-property="justification" data-style-value="right" class="style-input-toggle p-1.5 text-gray-500 hover:text-blue-600 rounded transition border" title="Align Right">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-align-right"><line x1="21" x2="3" y1="6" y2="6"/><line x1="21" x2="9" y1="12" y2="12"/><line x1="21" x2="5" y1="18" y2="18"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- NEW: Day Headers (Sun, Mon, ...) -->
+                    <div id="style-group-header">
+                        <h4 class="font-bold text-gray-800 mb-2 border-b pt-2 pb-1">Day Headers (Sun, Mon, ...)</h4>
+                        <div data-style-target="header" class="style-controls flex flex-wrap gap-2 items-center">
+                            <!-- Font Family -->
+                            <select data-style-property="font" class="style-input-select text-xs p-1 border rounded-md focus:ring-blue-500 focus:border-blue-500">
+                                <!-- Options populated by JS -->
+                            </select>
+                            <!-- Font Size (pt) -->
+                            <select data-style-property="size" class="style-input-select text-xs p-1 border rounded-md focus:ring-blue-500 focus:border-blue-500">
+                                <!-- Options populated by JS -->
+                            </select>
+                            <!-- Font Color -->
+                            <div class="color-input-container">
+                                <label for="header-color-day" class="text-xs mr-1">Text</label>
+                                <input id="header-color-day" type="color" data-style-property="color" value="#000000" class="color-input-widget" title="Text Color">
+                            </div>
+                            <!-- Background Color -->
+                            <div class="color-input-container">
+                                <label for="header-bgColor-day" class="text-xs mr-1">Background</label>
+                                <input id="header-bgColor-day" type="color" data-style-property="bgColor" value="#F3F4F6" class="color-input-widget" title="Background Color">
+                            </div>
+                            <!-- Formatting Toggles -->
+                            <button data-style-property="bold" data-style-type="toggle" class="style-input-toggle p-1.5 text-gray-500 hover:text-blue-600 rounded transition border" title="Bold">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-bold"><path d="M14 6H5v12h9a4 4 0 0 0 4-4V10a4 4 0 0 0-4-4z"/><path d="M14 12H5"/><path d="M14 12h2"/></svg>
+                            </button>
+                            <button data-style-property="italic" data-style-type="toggle" class="style-input-toggle p-1.5 text-gray-500 hover:text-blue-600 rounded transition border" title="Italic">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-italic"><line x1="19" x2="10" y1="4" y2="4"/><line x1="14" x2="5" y1="20" y2="20"/><line x1="15" x2="9" y1="4" y2="20"/></svg>
+                            </button>
+                            <button data-style-property="underline" data-style-type="toggle" class="style-input-toggle p-1.5 text-gray-500 hover:text-blue-600 rounded transition border" title="Underline">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-underline"><path d="M6 3v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3"/><line x1="4" x2="20" y1="21" y2="21"/></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Date Numbers -->
+                    <div id="style-group-date-numbers">
+                        <h4 class="font-bold text-gray-800 mb-2 border-b pt-2 pb-1">Date Numbers</h4>
+                        <div data-style-target="dateNumbers" class="style-controls flex flex-wrap gap-2 items-center">
+                            <!-- Font Family -->
+                            <select data-style-property="font" class="style-input-select text-xs p-1 border rounded-md focus:ring-blue-500 focus:border-blue-500">
+                                <!-- Options populated by JS -->
+                            </select>
+                            <!-- Font Size (pt) -->
+                            <select data-style-property="size" class="style-input-select text-xs p-1 border rounded-md focus:ring-blue-500 focus:border-blue-500">
+                                <!-- Options populated by JS -->
+                            </select>
+                            <!-- Font Color -->
+                            <div class="color-input-container">
+                                <!-- MODIFIED: Changed ID for clarity -->
+                                <label for="dateNumbers-color" class="text-xs mr-1">Text</label>
+                                <input id="dateNumbers-color" type="color" data-style-property="color" value="#000000" class="color-input-widget">
+                            </div>
+                            <!-- REMOVED: Background Color input was here by mistake -->
+                            
+                            <!-- Formatting Toggles -->
+                            <button data-style-property="bold" data-style-type="toggle" class="style-input-toggle p-1.5 text-gray-500 hover:text-blue-600 rounded transition border" title="Bold">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-bold"><path d="M14 6H5v12h9a4 4 0 0 0 4-4V10a4 4 0 0 0-4-4z"/><path d="M14 12H5"/><path d="M14 12h2"/></svg>
+                            </button>
+                            <button data-style-property="italic" data-style-type="toggle" class="style-input-toggle p-1.5 text-gray-500 hover:text-blue-600 rounded transition border" title="Italic">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-italic"><line x1="19" x2="10" y1="4" y2="4"/><line x1="14" x2="5" y1="20" y2="20"/><line x1="15" x2="9" y1="4" y2="20"/></svg>
+                            </button>
+                            <button data-style-property="underline" data-style-type="toggle" class="style-input-toggle p-1.5 text-gray-500 hover:text-blue-600 rounded transition border" title="Underline">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-underline"><path d="M6 3v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3"/><line x1="4" x2="20" y1="21" y2="21"/></svg>
+                            </button>
+                        
+                            <!-- Date Number Justification Control -->
+                            <div class="mt-4 w-full"> 
+                                <h5 class="block text-xs font-medium mb-1 text-gray-800">Date Position</h5>
+                                <div data-style-property-group="justification" class="flex gap-2"> 
+                                    <!-- Left -->
+                                    <button data-style-property="justification" data-style-value="left" class="style-input-toggle p-1.5 text-gray-500 hover:text-blue-600 rounded transition border" title="Align Left">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-align-left"><line x1="21" x2="3" y1="6" y2="6"/><line x1="15" x2="3" y1="12" y2="12"/><line x1="17" x2="3" y1="18" y2="18"/></svg>
+                                    </button>
+                                    <!-- Center -->
+                                    <button data-style-property="justification" data-style-value="center" class="style-input-toggle p-1.5 text-gray-500 hover:text-blue-600 rounded transition border" title="Align Center">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-align-center"><line x1="21" x2="3" y1="6" y2="6"/><line x1="17" x2="7" y1="12" y2="12"/><line x1="19" x2="5" y1="18" y2="18"/></svg>
+                                    </button>
+                                    <!-- Right -->
+                                    <button data-style-property="justification" data-style-value="right" class="style-input-toggle p-1.5 text-gray-500 hover:text-blue-600 rounded transition border" title="Align Right">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-align-right"><line x1="21" x2="3" y1="6" y2="6"/><line x1="21" x2="9" y1="12" y2="12"/><line x1="21" x2="5" y1="18" y2="18"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div> 
+
+                        <!-- Date Number Justification Control (OLD LOCATION) -->
+                        <div class="mt-4" style="display: none;"> <!-- Hiding old container, content moved above -->
+                            <h5 class="block text-xs font-medium mb-1 text-gray-800">Date Position</h5>
+                            <div data-style-target="dateNumbers" data-style-property-group="justification" class="flex gap-2">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Event Notes -->
+                    <div id="style-group-events">
+                        <h4 class="font-bold text-gray-800 mb-2 border-b pt-2 pb-1">Date Cells & Notes</h4>
+                        <div data-style-target="events" class="style-controls space-y-2">
+                            <div class="flex flex-wrap gap-2 items-center">
+                                <!-- Font Family -->
+                                <select data-style-property="font" class="style-input-select text-xs p-1 border rounded-md focus:ring-blue-500 focus:border-blue-500">
+                                    <!-- Options populated by JS -->
+                                </select>
+                                <!-- Font Size (pt) -->
+                                <select data-style-property="size" class="style-input-select text-xs p-1 border rounded-md focus:ring-blue-500 focus:border-blue-500">
+                                    <!-- Options populated by JS -->
+                                </select>
+                                <!-- Font Color -->
+                                <div class="color-input-container">
+                                    <label for="events-color" class="text-xs mr-1">Text</label>
+                                    <input id="events-color" type="color" data-style-property="color" value="#000000" class="color-input-widget">
+                                </div>
+                                <!-- Background Color (MOVED FROM DATE CELLS) -->
+                                <div class="color-input-container">
+                                    <label for="events-bgColor" class="text-xs mr-1">Background</label>
+                                    <input id="events-bgColor" type="color" data-style-property="bgColor" value="#FFFFFF" class="color-input-widget" title="Cell Background Color">
+                                </div>
+                                <!-- Formatting Toggles -->
+                                <button data-style-property="bold" data-style-type="toggle" class="style-input-toggle p-1.5 text-gray-500 hover:text-blue-600 rounded transition border" title="Bold">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-bold"><path d="M14 6H5v12h9a4 4 0 0 0 4-4V10a4 4 0 0 0-4-4z"/><path d="M14 12H5"/><path d="M14 12h2"/></svg>
+                                </button>
+                                <button data-style-property="italic" data-style-type="toggle" class="style-input-toggle p-1.5 text-gray-500 hover:text-blue-600 rounded transition border" title="Italic">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-italic"><line x1="19" x2="10" y1="4" y2="4"/><line x1="14" x2="5" y1="20" y2="20"/><line x1="15" x2="9" y1="4" y2="20"/></svg>
+                                </button>
+                                <button data-style-property="underline" data-style-type="toggle" class="style-input-toggle p-1.5 text-gray-500 hover:text-blue-600 rounded transition border" title="Underline">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-underline"><path d="M6 3v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3"/><line x1="4" x2="20" y1="21" y2="21"/></svg>
+                                </button>
+                            </div>
+
+                            <!-- Line Height Control (Dropdown) -->
+                            <div class="mt-2">
+                                <label for="event-line-height" class="block text-xs font-medium mb-1 text-gray-800">Line Spacing (Line Height)</label>
+                                <select id="event-line-height" data-style-property="lineHeight" class="style-input-select w-full text-xs p-1 border rounded-md focus:ring-blue-500 focus:border-blue-500">
+                                    <!-- Options populated by JS -->
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Date Cells Background (REMOVED - MERGED INTO EVENTS) -->
+                    <div id="style-group-date-cells" class="hidden">
+                    </div>
+                    
+                </div>
+            </div>
+
+            <!-- Accordion Item 2: Pictures (Placeholder) -->
+            <div class="border rounded-lg overflow-hidden">
+                <button class="accordion-header w-full flex justify-between items-center p-3 bg-gray-100 hover:bg-gray-200 transition font-medium text-left">
+                    Pictures
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="accordion-icon transition-transform duration-300"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+                <div class="accordion-content p-3 text-sm text-gray-600 hidden">
+                    <p>Placeholder for image upload or selection options, perhaps for a monthly header image.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Main Content Area: Calendar View -->
+    <main class="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-8">
+        <div class="bg-white p-4 sm:p-6 rounded-xl shadow-lg border border-gray-200">
+            
+            <!-- Title for Print View (No longer used, but kept for potential future use) -->
+            <h1 id="print-title" class="text-2xl font-bold text-gray-800 mb-6 hidden print:block">
+                <!-- Content set by JS -->
+            </h1>
+
+            <table id="calendar-table" class="w-full border-collapse border border-gray-300">
+                <thead>
+                    <!-- NEW: Month/Year Header Row -->
+                    <tr id="month-header-row">
+                        <th id="calendar-header-cell" colspan="7" class="py-4 text-center border border-gray-300">
+                            <!-- Month and Year will be set by JS -->
+                        </th>
+                    </tr>
+                    <!-- Day Headers Row -->
+                    <tr id="day-headers-row" class="text-center text-gray-500 bg-gray-100">
+                        <th class="py-2 border border-gray-300">Sun</th>
+                        <th class="py-2 border border-gray-300">Mon</th>
+                        <th class="py-2 border border-gray-300">Tue</th>
+                        <th class="py-2 border border-gray-300">Wed</th>
+                        <th class="py-2 border border-gray-300">Thu</th>
+                        <th class="py-2 border border-gray-300">Fri</th>
+                        <th class="py-2 border border-gray-300">Sat</th>
+                    </tr>
+                </thead>
+                <tbody id="calendar-body">
+                    <!-- Table rows and cells will be generated by JS here -->
+                </tbody>
+            </table>
+        </div>
+    </main>
+    
+    <script>
+        (() => {
+            // 1. CONSTANTS AND CONFIGURATION
+            let currentDate = new Date(); 
+            const NOTES_KEY = 'calendarAppNotes';
+            const STYLE_KEY = 'calendarAppStyles'; 
+
+            // Configuration for Font Options
+            const FONT_OPTIONS = [
+                { value: 'inter', label: 'Inter (Modern Sans)', class: 'font-inter' },
+                { value: 'roboto', label: 'Roboto (Clean Sans)', class: 'font-roboto' },
+                { value: 'serif', label: 'Playfair Display (Elegant Serif)', class: 'font-serif' },
+                { value: 'merriweather', label: 'Merriweather (Classic Serif)', class: 'font-merriweather' },
+                { value: 'mono', label: 'IBM Plex Mono (Fixed Width)', class: 'font-mono' },
+                { value: 'courier', label: 'Courier Prime (Typewriter)', class: 'font-courier' }
+            ];
+
+            // Configuration for Granular Font Size Options (using pt units)
+            const FONT_SIZE_OPTIONS = [
+                { value: '6pt', label: '6pt' },
+                { value: '8pt', label: '8pt' },
+                { value: '10pt', label: '10pt' },
+                { value: '12pt', label: '12pt' },
+                { value: '14pt', label: '14pt' },
+                { value: '18pt', label: '18pt' },
+                { value: '24pt', label: '24pt' },
+                { value: '36pt', label: '36pt' },
+                { value: '48pt', label: '48pt' }
+            ];
+
+            // Configuration for Line Spacing Options (unitless line-height)
+            const LINE_SPACING_OPTIONS = [
+                { value: '1.0', label: 'Single (1.0)' },
+                { value: '1.15', label: 'Normal (1.15)' },
+                { value: '1.5', label: 'One and a Half (1.5)' },
+                { value: '2.0', label: 'Double (2.0)' }
+            ];
+            
+            // Default styles structure (mainHeader color changed to black)
+            const defaultStyles = {
+                // MODIFIED: Added bgColor and justification
+                mainHeader: { font: 'serif', size: '48pt', color: '#000000', bold: true, italic: false, underline: false, justification: 'center', bgColor: '#F3F4F6' },
+                // MODIFIED: Added bgColor and full controls
+                header: { font: 'roboto', size: '14pt', color: '#000000', bold: true, italic: false, underline: false, bgColor: '#F3F4F6' },
+                // MODIFIED: Removed bgColor (it was never intended to be here)
+                dateNumbers: { font: 'mono', size: '18pt', color: '#000000', bold: true, italic: false, underline: false, justification: 'right' }, 
+                // MODIFIED: Merged dateCells' bgColor into events
+                events: { font: 'inter', size: '10pt', color: '#000000', bold: false, italic: false, underline: false, lineHeight: '1.15', bgColor: '#FFFFFF' }, 
+                // REMOVED: dateCells style group is no longer needed
+            };
+            let currentStyles = {}; 
+
+            // Utility data
+            const monthNames = ["January", "February", "March", "April", "May", "June",
+                                "July", "August", "September", "October", "November", "December"];
+
+            function createDateKey(year, month, day) {
+                return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            }
+            
+            // --- LOCAL STORAGE FUNCTIONS (Styles) ---
+            function getStyles() {
+                try {
+                    const data = localStorage.getItem(STYLE_KEY);
+                    const loadedStyles = data ? JSON.parse(data) : {};
+                    
+                    // NEW: Migrate old dateCells.bgColor to events.bgColor for users with old saved styles
+                    if (loadedStyles.dateCells && loadedStyles.dateCells.bgColor) {
+                        if (!loadedStyles.events) {
+                            loadedStyles.events = {};
+                        }
+                        if (loadedStyles.events.bgColor === undefined) { // Don't overwrite if it already exists
+                            loadedStyles.events.bgColor = loadedStyles.dateCells.bgColor;
+                        }
+                        delete loadedStyles.dateCells; // Remove the old top-level key
+                    }
+
+                    // NEW: Clean up old, unwanted properties from localStorage
+                    // This removes the bgColor from dateNumbers if it's still saved from a previous version
+                    if (loadedStyles.dateNumbers && loadedStyles.dateNumbers.bgColor !== undefined) {
+                        delete loadedStyles.dateNumbers.bgColor;
+                    }
+
+                    // Deep merge loaded styles with defaults
+                    const mergedStyles = {};
+                    for (const key in defaultStyles) {
+                        mergedStyles[key] = { ...defaultStyles[key], ...loadedStyles[key] };
+                    }
+                    return mergedStyles;
+
+                } catch (e) {
+                    console.error("Error reading styles from localStorage", e);
+                    return defaultStyles;
+                }
+            }
+
+            function saveStyles(styles) {
+                currentStyles = styles; 
+                try {
+                    localStorage.setItem(STYLE_KEY, JSON.stringify(styles));
+                } catch (e) {
+                    console.error("Error saving styles to localStorage", e);
+                }
+                renderCalendar(); 
+            }
+            
+            function updateStyle(element, property, value) {
+                const newStyles = getStyles();
+                
+                if (!newStyles[element]) {
+                    console.error(`Attempted to set style for invalid target: ${element}`);
+                    return; 
+                }
+
+                // Handle boolean conversion for toggles if needed
+                if (['bold', 'italic', 'underline'].includes(property)) {
+                    if (typeof value === 'string') {
+                         value = (value === 'true'); 
+                    }
+                }
+                
+                newStyles[element][property] = value;
+                saveStyles(newStyles);
+                // Re-initialize controls to ensure state (especially for group toggles) is visually correct
+                initializeStyleControls(currentStyles); 
+            }
+
+
+            // --- LOCAL STORAGE FUNCTIONS (Notes) ---
+            
+            function getNotes() {
+                try {
+                    const data = localStorage.getItem(NOTES_KEY);
+                    return data ? JSON.parse(data) : {};
+                } catch (e) {
+                    console.error("Error reading notes from localStorage", e);
+                    return {};
+                }
+            }
+
+            function saveNotes(notes) {
+                try {
+                    localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+                } catch (e) {
+                    console.error("Error saving notes to localStorage", e);
+                }
+            }
+            
+            function saveNoteContent(dateKey, noteId, newContent) {
+                const notes = getNotes();
+                if (!notes[dateKey]) { notes[dateKey] = {}; }
+                notes[dateKey][noteId] = newContent.trim();
+
+                if (!notes[dateKey][noteId]) {
+                    delete notes[dateKey][noteId];
+                }
+                if (Object.keys(notes[dateKey]).length === 0) {
+                    delete notes[dateKey];
+                }
+
+                saveNotes(notes);
+            }
+            
+            function deleteNote(dateKey, noteId) {
+                const notes = getNotes();
+                if (notes[dateKey] && notes[dateKey][noteId]) {
+                    delete notes[dateKey][noteId];
+                    
+                    if (Object.keys(notes[dateKey]).length === 0) {
+                        delete notes[dateKey];
+                    }
+                    saveNotes(notes);
+                    renderCalendar();
+                }
+            }
+
+            // --- DOM MANIPULATION & INTERACTIVITY ---
+            
+            // Helper to get all font classes
+            const allFontClasses = FONT_OPTIONS.map(f => f.class);
+            
+            function applyElementStyle(element, styles) {
+                if (!element) return;
+                
+                // 1. Clear previous dynamic classes 
+                element.classList.remove(...allFontClasses, 'font-bold', 'italic', 'underline');
+                
+                // 1b. NEW: Clear old justification and padding classes (text-align)
+                element.classList.remove('text-left', 'text-center', 'text-right', 'pl-4', 'pr-4');
+
+                // 2. Apply Font Family
+                const fontOption = FONT_OPTIONS.find(f => f.value === styles.font);
+                if (fontOption) {
+                    element.classList.add(fontOption.class);
+                }
+
+                // 3. Apply Font Size (inline style using pt units)
+                element.style.fontSize = styles.size || defaultStyles[element.getAttribute('data-style-target') || 'mainHeader'].size;
+                
+                // 4. Apply Font Color (inline style using hex code)
+                element.style.color = styles.color || '#000000';
+                
+                // 4b. NEW: Apply Background Color
+                if (styles.bgColor) {
+                    element.style.backgroundColor = styles.bgColor;
+                }
+
+                // 5. Apply Formatting
+                element.classList.toggle('font-bold', styles.bold);
+                element.classList.toggle('italic', styles.italic);
+                element.classList.toggle('underline', styles.underline);
+                
+                // 6. Apply Line Height (specifically for event notes)
+                if (styles.lineHeight) {
+                    element.style.lineHeight = styles.lineHeight;
+                }
+                
+                // 7. NEW: Apply Justification (for mainHeader)
+                // MODIFICATION: Only apply text-align justification if it's the mainHeader style object
+                if (styles === currentStyles.mainHeader) {
+                    if (styles.justification === 'left') {
+                        element.classList.add('text-left', 'pl-4');
+                    } else if (styles.justification === 'right') {
+                        element.classList.add('text-right', 'pr-4');
+                    } else if (styles.justification === 'center') {
+                        element.classList.add('text-center'); // Default
+                    }
+                }
+                
+                // Note: Justification for dateNumbers is handled dynamically in renderCalendar for dateNumbers
+                // as it uses absolute positioning classes. This function handles text-align justification.
+            }
+
+            function createNoteElement(dateKey, noteId, content) {
+                const noteEntry = document.createElement('div');
+                noteEntry.id = `note-entry-${noteId}`;
+                
+                // Use a minimal margin-bottom for visual separation between notes
+                noteEntry.className = `note-entry flex items-start text-gray-700 mb-1 group`; 
+                
+                // Editable content area
+                const editableDiv = document.createElement('div');
+                editableDiv.className = 'note-input flex-grow mr-1 p-0.5 whitespace-pre-wrap';
+                
+                // Apply all event styles 
+                applyElementStyle(editableDiv, currentStyles.events); 
+                
+                editableDiv.contentEditable = 'true';
+                editableDiv.textContent = content;
+
+                editableDiv.addEventListener('blur', () => {
+                    saveNoteContent(dateKey, noteId, editableDiv.textContent);
+                });
+                editableDiv.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        editableDiv.blur();
+                    }
+                });
+
+                // Delete button
+                const deleteButton = document.createElement('button');
+                deleteButton.className = 'delete-note-btn text-red-400 opacity-0 group-hover:opacity-100 hover:text-red-600 transition duration-150 p-0.5 print:hidden';
+                deleteButton.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                `;
+                deleteButton.title = "Delete Entry";
+                deleteButton.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    deleteNote(dateKey, noteId);
+                });
+
+                noteEntry.appendChild(editableDiv);
+                noteEntry.appendChild(deleteButton);
+                
+                return noteEntry;
+            }
+
+            window.addNewNote = (dateKey) => {
+                const noteId = Date.now();
+                const newContent = "";
+                
+                saveNoteContent(dateKey, noteId, newContent);
+
+                const noteElement = createNoteElement(dateKey, noteId, newContent);
+                const notesContainer = document.getElementById(`notes-container-${dateKey}`);
+                if (notesContainer) {
+                    notesContainer.appendChild(noteElement);
+                    const newEditableDiv = noteElement.querySelector('.note-input');
+                    if (newEditableDiv) {
+                        newEditableDiv.focus();
+                    }
+                }
+            }
+            
+            window.deleteNote = deleteNote;
+            
+            // --- NEW: Dropdown Synchronization ---
+            function updateDropdowns() {
+                const monthSelect = document.getElementById('month-select');
+                const yearSelect = document.getElementById('year-select');
+                monthSelect.value = currentDate.getMonth();
+                yearSelect.value = currentDate.getFullYear();
+            }
+
+
+            // 3. MAIN RENDER FUNCTION 
+            function renderCalendar() {
+                const year = currentDate.getFullYear();
+                const month = currentDate.getMonth();
+
+                const styleState = currentStyles; 
+                
+                // DOM Elements
+                // MODIFIED: Target the new calendar header cell
+                const calendarHeaderCell = document.getElementById('calendar-header-cell'); 
+                const calendarBody = document.getElementById('calendar-body');
+                const printTitle = document.getElementById('print-title'); // This is the old one
+
+                // --- 1. Update Dropdowns ---
+                // NEW: Sync dropdowns to the current date
+                updateDropdowns();
+
+                // --- 2. Apply Main Header Styles (to new location) ---
+                const titleText = `${monthNames[month]} ${year}`;
+                
+                // Apply text and styles to the new table header cell
+                if (calendarHeaderCell) {
+                    calendarHeaderCell.textContent = titleText;
+                    // MODIFIED: Removed 'text-center' as applyElementStyle now handles it.
+                    calendarHeaderCell.className = 'py-4 border border-gray-300'; // Reset base classes
+                    applyElementStyle(calendarHeaderCell, styleState.mainHeader);
+                }
+
+                // Apply styles to the old Print Title as well (for consistency, though it's hidden)
+                if (printTitle) { 
+                    printTitle.textContent = titleText; 
+                    // MODIFIED: Removed 'text-center' as applyElementStyle now handles it.
+                    printTitle.className = 'text-2xl font-bold text-gray-800 mb-6 hidden print:block';
+                    applyElementStyle(printTitle, styleState.mainHeader);
+                }
+                
+                // --- 3. Apply Day Header Styles ---
+                const headerTheads = document.querySelectorAll('#calendar-table thead #day-headers-row th');
+                headerTheads.forEach(th => {
+                    // MODIFIED: Removed bg-gray-100 and text-center
+                    th.className = 'py-2 border border-gray-300 text-gray-500'; 
+                    applyElementStyle(th, styleState.header);
+                });
+
+                // --- 4. Render Calendar Days ---
+                calendarBody.innerHTML = '';
+                const firstDayOfMonth = new Date(year, month, 1);
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                const startDayIndex = firstDayOfMonth.getDay(); 
+                const totalDays = daysInMonth;
+                const totalCellsNeeded = startDayIndex + totalDays;
+                const totalRows = Math.ceil(totalCellsNeeded / 7);
+                
+                // Prepare date number positioning class based on style state
+                const dateJustification = styleState.dateNumbers.justification;
+                let positionClasses = '';
+                if (dateJustification === 'left') {
+                    positionClasses = 'left-4 right-auto';
+                } else if (dateJustification === 'center') {
+                    positionClasses = 'left-1/2 transform -translate-x-1/2 right-auto';
+                } else { // 'right' (default)
+                    positionClasses = 'right-4 left-auto';
+                }
+
+                let dayNum = 1;
+
+                for (let row = 0; row < totalRows; row++) {
+                    const weekRow = document.createElement('tr');
+                    
+                    for (let col = 0; col < 7; col++) {
+                        const cell = document.createElement('td');
+                        // MODIFIED: Removed all 'bg-*' and 'hover:bg-*' classes
+                        let cellClasses = 'group h-20 sm:h-28 text-xs sm:text-sm p-1 sm:p-2 border border-gray-300 transition duration-150 relative overflow-hidden align-top';
+                        
+                        const cellIndex = row * 7 + col;
+
+                        if (cellIndex < startDayIndex || dayNum > totalDays) {
+                            cellClasses += ' opacity-60';
+                            cell.className = cellClasses;
+                            // NEW: Apply cell background color (from events style)
+                            cell.style.backgroundColor = styleState.events.bgColor;
+                        } else {
+                            const currentDay = dayNum;
+                            const dateKey = createDateKey(year, month, currentDay);
+                            const dayNotes = getNotes()[dateKey] || {};
+
+                            cellClasses += ' cursor-pointer'; // Removed hover:bg-gray-50
+                            cell.className = cellClasses;
+                            cell.setAttribute('data-date-key', dateKey);
+                            
+                            // NEW: Apply cell background color (from events style)
+                            cell.style.backgroundColor = styleState.events.bgColor;
+
+                            // Day number display (positioned absolutely)
+                            const dayNumSpan = document.createElement('span');
+                            // Start with generic classes
+                            dayNumSpan.className = 'day-num-display font-bold text-gray-800 text-base sm:text-xl';
+                            dayNumSpan.textContent = currentDay;
+                            
+                            // Apply font, size, color styles
+                            applyElementStyle(dayNumSpan, styleState.dateNumbers); 
+                            
+                            // Apply justification positioning classes
+                            dayNumSpan.classList.add(...positionClasses.split(' ').filter(c => c));
+
+                            const addButton = `
+                                <button 
+                                    class="add-note-btn absolute bottom-1 right-1 bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-lg leading-none shadow-md opacity-0 group-hover:opacity-100 hover:bg-blue-600 transition duration-150 z-20 print:hidden"
+                                    title="Add New Entry"
+                                    onclick="addNewNote('${dateKey}')"
+                                >
+                                    +
+                                </button>
+                            `;
+
+                            const notesContainer = document.createElement('div');
+                            notesContainer.id = `notes-container-${dateKey}`;
+                            // Adjust top margin based on the absolute positioning height of the date number (approx 35px)
+                            // REMOVED print:mt-0 as this is now handled in the print CSS block
+                            notesContainer.className = 'day-content-container mt-8 max-h-[calc(100%-35px)] overflow-y-auto print:overflow-visible'; 
+                            
+                            Object.entries(dayNotes).forEach(([noteId, content]) => {
+                                notesContainer.appendChild(createNoteElement(dateKey, noteId, content));
+                            });
+                            
+                            cell.appendChild(dayNumSpan); 
+                            cell.insertAdjacentHTML('beforeend', addButton);
+                            cell.appendChild(notesContainer); 
+                            
+                            dayNum++;
+                        }
+
+                        weekRow.appendChild(cell);
+                    }
+                    
+                    calendarBody.appendChild(weekRow);
+                }
+            }
+            
+            // --- SIDEBAR & ACCORDION FUNCTIONS ---
+
+            function toggleSidebar(show) {
+                const sidebar = document.getElementById('settings-sidebar');
+                if (sidebar) {
+                    if (show) {
+                        sidebar.classList.remove('translate-x-full');
+                    } else {
+                        sidebar.classList.add('translate-x-full');
+                    }
+                }
+            }
+
+            function setupAccordion() {
+                const headers = document.querySelectorAll('.accordion-header');
+                headers.forEach(header => {
+                    header.addEventListener('click', () => {
+                        const content = header.nextElementSibling;
+                        const icon = header.querySelector('.accordion-icon');
+
+                        const isHidden = content.classList.contains('hidden');
+                        
+                        document.querySelectorAll('.accordion-content').forEach(c => {
+                            if (c !== content && !c.classList.contains('hidden')) {
+                                c.classList.add('hidden');
+                                c.previousElementSibling.querySelector('.accordion-icon').classList.remove('rotate-180');
+                            }
+                        });
+
+                        content.classList.toggle('hidden');
+                        icon.classList.toggle('rotate-180', isHidden);
+                    });
+                });
+            }
+            
+            // --- STYLE CONTROL HANDLERS ---
+            
+            // Helper to populate select elements dynamically
+            function populateSelects() {
+                // Populate Font Family Selects
+                document.querySelectorAll('.style-input-select[data-style-property="font"]').forEach(select => {
+                    select.innerHTML = '';
+                    FONT_OPTIONS.forEach(opt => {
+                        const option = document.createElement('option');
+                        option.value = opt.value;
+                        option.textContent = opt.label;
+                        select.appendChild(option);
+                    });
+                });
+                
+                // Populate Font Size Selects
+                document.querySelectorAll('.style-input-select[data-style-property="size"]').forEach(select => {
+                    select.innerHTML = '';
+                    FONT_SIZE_OPTIONS.forEach(opt => {
+                        const option = document.createElement('option');
+                        option.value = opt.value;
+                        option.textContent = opt.label;
+                        select.appendChild(option);
+                    });
+                });
+
+                // Populate Line Height Selects (Only for events group)
+                const lineHeightSelect = document.querySelector('#event-line-height');
+                if (lineHeightSelect) {
+                    lineHeightSelect.innerHTML = '';
+                    LINE_SPACING_OPTIONS.forEach(opt => {
+                        const option = document.createElement('option');
+                        option.value = opt.value;
+                        option.textContent = opt.label;
+                        lineHeightSelect.appendChild(option);
+                    });
+                }
+            }
+
+            // --- NEW: Function to populate nav dropdowns ---
+            function populateNavDropdowns() {
+                const monthSelect = document.getElementById('month-select');
+                const yearSelect = document.getElementById('year-select');
+
+                // Populate Month Select
+                monthNames.forEach((name, index) => {
+                    const option = document.createElement('option');
+                    option.value = index;
+                    option.textContent = name;
+                    monthSelect.appendChild(option);
+                });
+
+                // Populate Year Select (e.g., 50 years past, 50 years future)
+                const currentYear = new Date().getFullYear();
+                const startYear = currentYear - 50;
+                const endYear = currentYear + 50;
+                for (let year = startYear; year <= endYear; year++) {
+                    const option = document.createElement('option');
+                    option.value = year;
+                    option.textContent = year;
+                    yearSelect.appendChild(option);
+                }
+            }
+
+
+            function initializeStyleControls(styles) {
+                document.querySelectorAll('.style-controls').forEach(container => {
+                    const target = container.getAttribute('data-style-target');
+                    const targetStyles = styles[target];
+                    
+                    if (!targetStyles) return;
+
+                    // Handle Selects (Font, Size, LineHeight)
+                    container.querySelectorAll('.style-input-select').forEach(select => {
+                        const prop = select.getAttribute('data-style-property');
+                        if (targetStyles[prop] !== undefined) {
+                            select.value = targetStyles[prop];
+                        }
+                    });
+
+                    // Handle Color Input
+                    container.querySelectorAll('input[type="color"]').forEach(input => {
+                        const prop = input.getAttribute('data-style-property');
+                        if (targetStyles[prop] !== undefined) {
+                            input.value = targetStyles[prop];
+                        }
+                    });
+
+                    // Handle Simple Toggles (Bold, Italic, Underline)
+                    container.querySelectorAll('.style-input-toggle:not([data-style-value])').forEach(button => {
+                        const prop = button.getAttribute('data-style-property');
+                        const isToggleOn = targetStyles[prop];
+                        
+                        button.classList.toggle('active', isToggleOn);
+                        button.setAttribute('data-style-state', isToggleOn ? 'true' : 'false');
+                    });
+                    
+                    // Handle Group Toggles (Justification)
+                    container.querySelectorAll('[data-style-property-group="justification"]').forEach(groupContainer => {
+                        const prop = groupContainer.getAttribute('data-style-property') || 'justification'; // Should be 'justification'
+                        const currentValue = targetStyles[prop];
+
+                        groupContainer.querySelectorAll('[data-style-property="justification"]').forEach(button => {
+                            const buttonValue = button.getAttribute('data-style-value');
+                            const isActive = buttonValue === currentValue;
+                            button.classList.toggle('active', isActive);
+                        });
+                    });
+                });
+            }
+            
+            function setupStyleListeners() {
+                const getStyleTarget = (element) => {
+                    const controlsContainer = element.closest('.style-controls');
+                    return controlsContainer ? controlsContainer.getAttribute('data-style-target') : null;
+                };
+
+                // Selects and Color Inputs use 'change'/'input' event
+                document.querySelectorAll('.style-input-select, input[type="color"]').forEach(input => {
+                    input.addEventListener('change', (e) => {
+                        const target = getStyleTarget(e.target); 
+                        if (!target) return;
+                        const prop = e.target.getAttribute('data-style-property');
+                        updateStyle(target, prop, e.target.value);
+                    });
+                });
+                
+                // Simple Toggle buttons use 'click' event
+                document.querySelectorAll('.style-input-toggle:not([data-style-value])').forEach(button => {
+                    button.addEventListener('click', () => {
+                        const target = getStyleTarget(button); 
+                        if (!target) return;
+                        const prop = button.getAttribute('data-style-property');
+                        
+                        const currentState = button.getAttribute('data-style-state') === 'true';
+                        const newState = !currentState;
+                        
+                        // Class/attribute update handled in updateStyle -> initializeStyleControls
+                        updateStyle(target, prop, newState);
+                    });
+                });
+                
+                // Group Toggle buttons (Justification) use 'click' event
+                document.querySelectorAll('[data-style-property-group]').forEach(groupContainer => {
+                    groupContainer.addEventListener('click', (e) => {
+                        const button = e.target.closest('[data-style-property][data-style-value]');
+                        if (!button) return;
+
+                        const target = getStyleTarget(button); 
+                        if (!target) return;
+                        
+                        const prop = button.getAttribute('data-style-property');
+                        const value = button.getAttribute('data-style-value');
+
+                        updateStyle(target, prop, value);
+                    });
+                });
+            }
+
+
+            // 4. NAVIGATION & PRINT HANDLERS
+            function navigateMonth(delta) {
+                currentDate.setMonth(currentDate.getMonth() + delta);
+                renderCalendar();
+            }
+
+            function goToToday() {
+                currentDate = new Date();
+                renderCalendar();
+            }
+            
+            function handlePrint() {
+                window.print();
+            }
+
+            // 5. INITIALIZATION
+            document.addEventListener('DOMContentLoaded', () => {
+                // Populate selects with dynamic options first
+                populateSelects();
+                populateNavDropdowns(); // NEW: Populate nav dropdowns
+
+                // Initialize styles state by loading from storage
+                currentStyles = getStyles();
+
+                // Find and attach listeners
+                document.getElementById('prev-month').addEventListener('click', () => navigateMonth(-1));
+                document.getElementById('next-month').addEventListener('click', () => navigateMonth(1));
+                document.getElementById('today-button').addEventListener('click', goToToday);
+                document.getElementById('print-button').addEventListener('click', handlePrint);
+                
+                document.getElementById('menu-button').addEventListener('click', () => toggleSidebar(true));
+                document.getElementById('close-sidebar-button').addEventListener('click', () => toggleSidebar(false));
+
+                // NEW: Listeners for nav dropdowns
+                document.getElementById('month-select').addEventListener('change', (e) => {
+                    currentDate.setDate(1); // Set to 1st to avoid month-end rollover bugs
+                    currentDate.setMonth(parseInt(e.target.value, 10));
+                    renderCalendar();
+                });
+                document.getElementById('year-select').addEventListener('change', (e) => {
+                    currentDate.setDate(1); // Set to 1st to avoid month-end rollover bugs
+                    currentDate.setFullYear(parseInt(e.target.value, 10));
+                    renderCalendar();
+                });
+
+
+                setupAccordion();
+                setupStyleListeners();
+                initializeStyleControls(currentStyles);
+
+                // Initial render
+                renderCalendar();
+            });
+        })(); 
+    </script>
+
+</body>
+</html>

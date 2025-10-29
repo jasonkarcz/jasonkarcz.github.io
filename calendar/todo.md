@@ -1,0 +1,10 @@
+- add images (freeform)
+- cell-specific overrides
+  - cell menu (3-dots next to + button)
+  - image for cell
+  - font/style overrides for cell
+- add ability to set the height of the header row
+- add ability to show/hide border around header row
+- repeating elements
+  - images (all months/years or pin month and/or year)
+  - events
