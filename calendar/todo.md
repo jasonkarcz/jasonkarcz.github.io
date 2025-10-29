@@ -8,3 +8,4 @@
 - repeating elements
   - images (all months/years or pin month and/or year)
   - events
+- add save/load functionality
