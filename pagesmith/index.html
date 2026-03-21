@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pagesmith – PDF Transform Studio</title>
+  <meta name="description" content="Upload, crop, resize, and arrange PDF pages in a visual transform pipeline.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <div class="header-brand">
+    <svg class="brand-logo" viewBox="0 0 28 28" fill="none">
+      <rect x="4" y="2" width="14" height="19" rx="2" stroke="url(#lg1)" stroke-width="1.5"/>
+      <path d="M9 2V21M4 9H18" stroke="url(#lg1)" stroke-width="1.5"/>
+      <rect x="15" y="12" width="9" height="13" rx="1.5" fill="url(#lg2)" opacity="0.85"/>
+      <defs>
+        <linearGradient id="lg1" x1="4" y1="2" x2="18" y2="21" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#818cf8"/><stop offset="1" stop-color="#a78bfa"/>
+        </linearGradient>
+        <linearGradient id="lg2" x1="15" y1="12" x2="24" y2="25" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#6366f1"/><stop offset="1" stop-color="#8b5cf6"/>
+        </linearGradient>
+      </defs>
+    </svg>
+    <span class="brand-name">Pagesmith</span>
+  </div>
+
+  <div class="header-actions">
+    <button class="btn btn-outline" id="upload-btn">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M8 11V3M5 6l3-3 3 3M2 13h12"/>
+      </svg>
+      Add Files
+    </button>
+    <button class="btn btn-danger-outline" id="clear-pages-btn" title="Clear pages only">
+      Clear Pages
+    </button>
+    <button class="btn btn-danger-outline" id="clear-all-btn" title="Clear everything and start over">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2.5 3.5h11M6 3.5v-1a1 1 0 011-1h2a1 1 0 011 1v1M4 3.5v10a1.5 1.5 0 001.5 1.5h5A1.5 1.5 0 0012 13.5v-10"/>
+        <path d="M6.5 7v4M9.5 7v4"/>
+      </svg>
+      Start over
+    </button>
+    <input type="file" id="file-input" accept=".pdf,image/jpeg,image/png,image/webp,image/gif,image/tiff" multiple style="display:none">
+    <button class="theme-toggle" id="theme-toggle" title="Toggle light/dark mode" aria-label="Toggle theme">
+      <svg class="icon-theme" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path class="sun-icon" d="M12 12m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" />
+        <path class="sun-icon" d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+        <path class="moon-icon" d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" style="display:none" />
+      </svg>
+    </button>
+  </div>
+</header>
+
+<div class="app-body">
+
+  <!-- ===== LEFT PANEL ===== -->
+  <aside class="left-panel">
+    <div class="panel-top-label">
+      <span>Pipeline</span>
+      <button class="btn btn-danger-outline" id="clear-transforms-btn" style="padding:2px 8px;font-size:10px;margin-left:auto;">Clear</button>
+    </div>
+
+    <div class="transforms-list" id="transforms-list">
+      <div class="empty-transforms" id="empty-transforms">
+        <svg viewBox="0 0 40 40" fill="none">
+          <rect x="6" y="6" width="28" height="28" rx="3" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 3"/>
+          <path d="M20 13v14M13 20h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <p>No transforms yet</p>
+        <span>Add transforms below to build your pipeline</span>
+      </div>
+    </div>
+
+    <div class="add-transforms-section">
+      <p class="add-transforms-label">Add transform</p>
+      <div class="add-transforms-buttons">
+        <button class="add-transform-btn" id="add-crop-btn">
+          <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+            <rect x="4.5" y="4.5" width="9" height="9" rx="0.5"/>
+            <path d="M1.5 4.5h3M13.5 4.5h3M4.5 1.5v3M4.5 13.5v3M13.5 1.5v3M13.5 13.5v3"/>
+          </svg>
+          Crop
+        </button>
+        <button class="add-transform-btn" id="add-pagesize-btn">
+          <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+            <rect x="3" y="1.5" width="10" height="15" rx="1"/>
+            <path d="M6 6.5h5M6 9.5h5M6 12.5h3"/>
+          </svg>
+          Page Size
+        </button>
+        <button class="add-transform-btn" id="add-2up-btn">
+          <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+            <rect x="1" y="2.5" width="7" height="13" rx="1"/>
+            <rect x="10" y="2.5" width="7" height="13" rx="1"/>
+            <path d="M8 9h2"/>
+          </svg>
+          2-Up
+        </button>
+        <button class="add-transform-btn" id="add-4up-btn">
+          <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+            <rect x="1" y="2" width="7" height="6" rx="1"/>
+            <rect x="10" y="2" width="7" height="6" rx="1"/>
+            <rect x="1" y="10" width="7" height="6" rx="1"/>
+            <rect x="10" y="10" width="7" height="6" rx="1"/>
+          </svg>
+          4-Up
+        </button>
+        <button class="add-transform-btn" id="add-reorder-btn">
+          <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+            <path d="M2 5h14M2 9h14M2 13h14"/>
+            <path d="M13 3l3 2-3 2M5 11l-3 2 3 2"/>
+          </svg>
+          Reorder
+        </button>
+        <button class="add-transform-btn" id="add-remove-btn">
+          <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+            <path d="M4 4l10 10M14 4L4 14"/>
+          </svg>
+          Remove
+        </button>
+        <button class="add-transform-btn" id="add-blank-btn">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+            <rect x="3" y="2" width="10" height="12" rx="1"/>
+            <path d="M8 5v6M5 8h6"/>
+          </svg>
+          Insert Blank
+        </button>
+      </div>
+    </div>
+
+    <div class="panel-footer">
+      <button class="btn btn-export" id="export-btn" disabled>
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M8 3v8M5 8l3 3 3-3M2 13h12"/>
+        </svg>
+        Export PDF
+      </button>
+    </div>
+  </aside>
+
+  <!-- ===== PAGES PANEL ===== -->
+  <main class="pages-panel" id="pages-panel">
+    <div class="drop-zone" id="drop-zone">
+      <div class="drop-zone-inner">
+        <svg class="drop-icon" viewBox="0 0 72 72" fill="none">
+          <rect x="18" y="8" width="36" height="48" rx="3" stroke="currentColor" stroke-width="1.5" opacity="0.25"/>
+          <rect x="10" y="14" width="36" height="48" rx="3" stroke="currentColor" stroke-width="1.5" opacity="0.5"/>
+          <rect x="18" y="8" width="36" height="48" rx="3" stroke="currentColor" stroke-width="2"/>
+          <path d="M36 24V40M29 31l7-7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <h1 class="drop-title">Drop files here</h1>
+        <p class="drop-sub" style="margin-bottom:12px;">PDFs and images</p>
+        <p style="max-width:340px;font-size:12px;color:var(--text-3);line-height:1.5;margin-bottom:16px;">
+          Pagesmith is a visual PDF transform pipeline. Crop, resize, reorder, and modify pages. <br><br>
+          <strong>All processing happens securely in your browser. No files are ever sent to a server.</strong>
+        </p>
+        <button class="btn btn-outline" id="drop-upload-btn" style="padding:10px 18px;font-size:14px;border-width:2px;">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 11V3M5 6l3-3 3 3M2 13h12"/>
+          </svg>
+          Add Files
+        </button>
+      </div>
+    </div>
+    <div class="pages-grid" id="pages-grid" style="display:none"></div>
+  </main>
+
+  <!-- ===== PAGES FOOTER ===== -->
+  <div class="pages-footer" id="pages-footer">
+    <div class="footer-zoom">
+      <span class="footer-page-badge" id="page-count-badge">0 pages</span>
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="6.5" cy="6.5" r="4"/><path d="M11 11l3 3M4.5 6.5h4"/></svg>
+      <input type="range" id="zoom-slider" min="0.4" max="2.5" step="0.05" value="1">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="6.5" cy="6.5" r="4"/><path d="M11 11l3 3M4.5 6.5h4M6.5 4.5v4"/></svg>
+      <span class="zoom-label" id="zoom-label">100%</span>
+    </div>
+  </div>
+
+
+</div>
+
+<div class="toast-container" id="toast-container" aria-live="polite"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+<script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>
