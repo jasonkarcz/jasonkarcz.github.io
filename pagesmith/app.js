@@ -1274,6 +1274,42 @@ async function export2Up(bytes, settings) {
   return out.save();
 }
 
+async function export4Up(bytes, settings) {
+  const {PDFDocument,degrees}=PDFLib; const src=await PDFDocument.load(bytes); const out=await PDFDocument.create();
+  const pgs=src.getPages(), n=pgs.length;
+  if(!n) return out.save();
+  const pad = settings.bookMode ? Math.ceil(n/8)*8 : Math.ceil(n/4)*4;
+  const {width:pw,height:ph}=pgs[0].getSize();
+  if (settings.bookMode) {
+    const numSpreads=pad/2, numFinalSheets=pad/4;
+    const spreads=[];
+    for (let i=1;i<=numSpreads;i++) {
+      const frontIdx=i-1, backIdx=pad-i, isOdd=(i%2!==0);
+      spreads.push({ lIdx: isOdd?backIdx:frontIdx, rIdx: isOdd?frontIdx:backIdx });
+    }
+    for (let j=0;j<numFinalSheets;j++) {
+      const top=spreads[j], bottom=spreads[numSpreads-1-j];
+      const np=out.addPage([pw,ph]);
+      if(top.lIdx<n){const[e]=await out.embedPages([pgs[top.lIdx]]);np.drawPage(e,{x:0,y:ph/2,width:pw/2,height:ph/2});}
+      if(top.rIdx<n){const[e]=await out.embedPages([pgs[top.rIdx]]);np.drawPage(e,{x:pw/2,y:ph/2,width:pw/2,height:ph/2});}
+      if(bottom.rIdx<n){const[e]=await out.embedPages([pgs[bottom.rIdx]]);np.drawPage(e,{x:pw/2,y:ph/2,width:pw/2,height:ph/2,rotate:degrees(180)});}
+      if(bottom.lIdx<n){const[e]=await out.embedPages([pgs[bottom.lIdx]]);np.drawPage(e,{x:pw,y:ph/2,width:pw/2,height:ph/2,rotate:degrees(180)});}
+    }
+  } else {
+    for (let i=0;i<pad/4;i++) {
+      const np=out.addPage([pw,ph]);
+      for (let j=0;j<4;j++) {
+        const idx=i*4+j;
+        if(idx>=n) continue;
+        const [e]=await out.embedPages([pgs[idx]]);
+        const x=(j%2)*(pw/2), y=(Math.floor(j/2)===0?ph/2:0);
+        np.drawPage(e,{x,y,width:pw/2,height:ph/2});
+      }
+    }
+  }
+  return out.save();
+}
+
 async function exportReorder(bytes, moves) {
   const {PDFDocument}=PDFLib; const src=await PDFDocument.load(bytes); const out=await PDFDocument.create();
   const pgs=src.getPages();
